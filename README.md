@@ -45,7 +45,7 @@ They are fast to write but hard to reuse: the next doctor, a referral letter or 
 - [x] Stage 1 — Product brief (`docs/Product_Brief.pdf`)
 - [x] Stage 2 — Structured input form + validation
 - [x] Stage 3 — Logic layer before AI
-- [ ] Stage 4 — Claude AI integration + grounding check + confidence
+- [x] Stage 4 — Claude AI integration + grounding check + confidence
 - [ ] Stage 5 — Database storage + saved notes
 - [ ] Stage 6 — Admin dashboard
 
