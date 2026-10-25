@@ -87,7 +87,8 @@ Structure these notes now. Remember: every item needs exact "evidence" from the 
 
 # ----------------------------------------------------------- 5. LLM API call
 def call_claude(system_prompt, user_prompt):
-    """Call the Claude API. Returns (text, usage_dict, seconds). Raises AIError."""
+    """Call the Claude API. Consistency comes from the strict prompt rules and
+    the grounding check afterwards (the current API has no temperature setting). Returns (text, usage_dict, seconds). Raises AIError."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise AIError("The AI key is not set up. Add ANTHROPIC_API_KEY in Replit Secrets.")
@@ -102,7 +103,6 @@ def call_claude(system_prompt, user_prompt):
         msg = client.messages.create(
             model=MODEL,
             max_tokens=2000,
-            temperature=0,               # most predictable output
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )

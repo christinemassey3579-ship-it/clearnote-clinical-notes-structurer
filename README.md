@@ -26,7 +26,7 @@ They are fast to write but hard to reuse: the next doctor, a referral letter or 
 | 2 | Input validation | `validation.py` | No |
 | 3 | **Logic layer** — redact names/phones/IDs, check vitals against safe ranges, detect red-flag words, detect which sections exist, check for missing critical info, decide whether the AI is needed at all | `logic.py` | No |
 | 4 | Prompt construction (notes + logic findings + strict "do not invent" rules) | `ai.py → build_prompt` | — |
-| 5 | Claude API call (temperature 0, timeout, retry) | `ai.py → call_claude` | **Yes** |
+| 5 | Claude API call (timeout, retry, friendly errors) | `ai.py → call_claude` | **Yes** |
 | 6 | Output parsing (JSON → clean data, format retry) | `ai.py → parse_output` | No |
 | 7 | **Grounding & confidence check** — every AI item must quote the notes word-for-word; invented items, numbers or words are blocked; confidence score calculated | `ai.py → ground_and_score` | No |
 | 8 | Database storage (every submission, incl. stopped + failed) | `db.py` | No |
