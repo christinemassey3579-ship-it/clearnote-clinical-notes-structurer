@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}New note{% endblock %}
+{% block content %}
+<h1>Structure a clinical note</h1>
+<p class="sub">Paste your notes as you wrote them - shorthand is fine. ClearNote checks them, sorts them into
+Symptoms · History · Observations · Next steps, and flags anything critical that's missing.</p>
+
+{% if errors %}
+<div class="alert error"><strong>Please fix the following before continuing:</strong>
+  <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('submit') }}" class="card" id="noteForm" novalidate>
+  <div class="form-grid">
+    <div>
+      <label for="patient_ref">Patient reference <small>(code, not name)</small></label>
+      <input type="text" id="patient_ref" name="patient_ref" placeholder="e.g. PT-0042"
+             value="{{ form.patient_ref or '' }}" required pattern="[A-Za-z0-9\-]{3,20}">
+    </div>
+    <div>
+      <label for="age">Age <small>(optional)</small></label>
+      <input type="number" id="age" name="age" min="0" max="120" value="{{ form.age or '' }}">
+    </div>
+    <div>
+      <label for="sex">Sex</label>
+      <select id="sex" name="sex" required>
+        <option value="">Choose…</option>
+        {% for s in sex_options %}<option {{ 'selected' if form.sex == s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="encounter_type">Visit type</label>
+      <select id="encounter_type" name="encounter_type" required>
+        <option value="">Choose…</option>
+        {% for s in encounter_types %}<option {{ 'selected' if form.encounter_type == s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="clinician_role">Your role</label>
+      <select id="clinician_role" name="clinician_role" required>
+        <option value="">Choose…</option>
+        {% for s in clinician_roles %}<option {{ 'selected' if form.clinician_role == s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div style="margin-top:18px">
+    <div class="samples">Try a sample:
+      <button type="button" class="btn ghost" data-sample="complete">Complete note</button>
+      <button type="button" class="btn ghost" data-sample="urgent">Urgent + gaps</button>
+      <button type="button" class="btn ghost" data-sample="sparse">Sparse note</button>
+      <button type="button" class="btn ghost" data-sample="junk">Not clinical</button>
+    </div>
+    <label for="raw_notes">Raw clinical notes</label>
+    <textarea id="raw_notes" name="raw_notes" required
+      placeholder="e.g. 34F c/o dry cough x 5 days, mild fever. NKDA. O/E temp 38.1, chest clear. Plan: steam, paracetamol 500mg SOS, review 3 days.">{{ form.raw_notes or '' }}</textarea>
+    <div class="counter" id="counter">0 words</div>
+  </div>
+
+  <label class="check">
+    <input type="checkbox" name="no_identifiers" {{ 'checked' if form.no_identifiers }}>
+    I confirm these notes contain no patient names, phone numbers or ID numbers
+    (ClearNote also removes any it finds before the AI sees them).
+  </label>
+
+  <button class="btn" type="submit" id="submitBtn">Structure notes</button>
+  <span class="loading">&nbsp; Checking notes and structuring… this takes 5–15 seconds.</span>
+</form>
+
+<script>
+const SAMPLES = {
+  complete: {ref:"PT-1001", age:"34", sex:"Female", enc:"OPD consultation", role:"Doctor",
+    notes:"34F c/o dry cough x 5 days, low grade fever since 3 days, mild sore throat. No SOB. h/o asthma in childhood, not on any regular meds. NKDA. O/E temp 38.1 C, HR 92, BP 118/76, SpO2 98%, RR 18. Throat congested, chest clear bilaterally. Plan: likely viral URTI. Steam inhalation, warm fluids, paracetamol 500mg SOS for fever. Review in 3 days or earlier if breathless."},
+  urgent: {ref:"PT-2042", age:"54", sex:"Male", enc:"Emergency", role:"Doctor",
+    notes:"Pt name: Rakesh Kumar ph 9876543210. 54M c/o chest pain radiating to L arm x 2 hrs, sweating ++. h/o HTN, DM on metformin. O/E BP 186/110, HR 112, SpO2 94%, temp 98.6F. chest clear. plan ECG stat, trop, refer cardiology."},
+  sparse: {ref:"PT-3007", age:"", sex:"Female", enc:"Follow-up visit", role:"Nurse",
+    notes:"pt came for f/u. says knee still hurts on stairs, better than last wk. swelling less. continue same, review 2 wks."},
+  junk: {ref:"PT-9999", age:"40", sex:"Male", enc:"OPD consultation", role:"Doctor",
+    notes:"Please remember to order more printer paper for the front desk and call the vendor about the AC on Monday morning."}
+};
+const f = document.getElementById("noteForm"), ta = document.getElementById("raw_notes"), c = document.getElementById("counter");
+const count = () => { const n = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0; c.textContent = n + " words" + (n && n < 12 ? " - add a bit more (12+)" : ""); };
+ta.addEventListener("input", count); count();
+document.querySelectorAll("[data-sample]").forEach(b => b.addEventListener("click", () => {
+  const s = SAMPLES[b.dataset.sample];
+  f.patient_ref.value = s.ref; f.age.value = s.age; f.sex.value = s.sex;
+  f.encounter_type.value = s.enc; f.clinician_role.value = s.role; ta.value = s.notes;
+  f.no_identifiers.checked = true; count();
+}));
+f.addEventListener("submit", () => { f.classList.add("busy"); document.getElementById("submitBtn").disabled = true; });
+</script>
+{% endblock %}

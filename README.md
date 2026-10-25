@@ -43,7 +43,7 @@ They are fast to write but hard to reuse: the next doctor, a referral letter or 
 ## Build progress (one commit per stage)
 
 - [x] Stage 1 — Product brief (`docs/Product_Brief.pdf`)
-- [ ] Stage 2 — Structured input form + validation
+- [x] Stage 2 — Structured input form + validation
 - [ ] Stage 3 — Logic layer before AI
 - [ ] Stage 4 — Claude AI integration + grounding check + confidence
 - [ ] Stage 5 — Database storage + saved notes

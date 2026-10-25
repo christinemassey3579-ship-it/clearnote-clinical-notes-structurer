@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ClearNote{% endblock %} · Clinical Notes Structurer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="{{ url_for('index') }}">ClearNote<span>Clinical Notes Structurer</span></a>
+    <nav>
+      <a href="{{ url_for('index') }}" class="{{ 'on' if active == 'new' }}">New note</a>
+      {% if 'db' in features %}<a href="{{ url_for('history') }}" class="{{ 'on' if active == 'history' }}">Saved notes</a>{% endif %}
+      {% if 'admin' in features %}<a href="{{ url_for('admin') }}" class="{{ 'on' if active == 'admin' }}">Admin</a>{% endif %}
+    </nav>
+  </div>
+</header>
+<div class="disclaimer"><div class="wrap">
+  Documentation aid only. It re-organises what you wrote - it never diagnoses or adds facts. Always review before use. Use patient codes, never names.
+</div></div>
+<main><div class="wrap">
+  {% block content %}{% endblock %}
+</div></main>
+</body>
+</html>

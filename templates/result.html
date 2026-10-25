@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Notes received{% endblock %}
+{% block content %}
+<h1>Notes received · {{ data.patient_ref }}</h1>
+<p class="sub">{{ data.encounter_type }} · {{ data.clinician_role }} ·
+  {{ data.age ~ ' yrs' if data.age else 'age not given' }} · {{ data.sex }}</p>
+<div class="alert info"><strong>All validation checks passed.</strong>
+  The notes are ready for the logic layer (coming in the next stage).</div>
+<div class="card">
+  <h2>Notes as entered ({{ data.raw_notes.split()|length }} words)</h2>
+  <pre class="raw">{{ data.raw_notes }}</pre>
+</div>
+<a class="btn ghost" href="{{ url_for('index') }}">New note</a>
+{% endblock %}
