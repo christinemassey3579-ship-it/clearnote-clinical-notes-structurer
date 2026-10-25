@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+notes.db
+.env
+.pythonlibs/
+.cache/
+.upm/
