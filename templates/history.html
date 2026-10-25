@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Saved notes{% endblock %}
+{% block content %}
+<h1>Saved notes</h1>
+<p class="sub">Every submission is stored - including ones stopped by the checks - so nothing is lost.</p>
+
+<form class="filters" method="get">
+  <input type="text" name="patient_ref" placeholder="Search patient code" value="{{ request.args.get('patient_ref','') }}">
+  <select name="level">
+    <option value="">Any confidence</option>
+    {% for l in ['High','Medium','Low'] %}<option {{ 'selected' if request.args.get('level') == l }}>{{ l }}</option>{% endfor %}
+  </select>
+  <button class="btn small" type="submit">Filter</button>
+  <a class="btn ghost" href="{{ url_for('history') }}">Clear</a>
+</form>
+
+<div class="card" style="overflow-x:auto">
+<table class="list">
+  <tr><th>#</th><th>Date (IST)</th><th>Patient</th><th>Visit</th><th>Status</th><th>Confidence</th><th>Flags</th><th>Review</th><th></th></tr>
+  {% for n in notes %}
+  <tr>
+    <td>{{ n.id }}</td>
+    <td>{{ n.created_at|ist }}</td>
+    <td>{{ n.patient_ref }}</td>
+    <td>{{ n.encounter_type }}</td>
+    <td><span class="pill {{ n.status }}">{{ n.status.replace('_',' ') }}</span></td>
+    <td>{{ (n.confidence_score|string ~ ' · ' ~ n.confidence_level) if n.confidence_score is not none else '-' }}</td>
+    <td>{{ n.flag_count }}{% if n.red_flag_count %} <span class="pill critical">urgent</span>{% endif %}</td>
+    <td><span class="pill {{ n.review_status.split(' ')[0] }}">{{ n.review_status }}</span></td>
+    <td><a href="{{ url_for('view_note', note_id=n.id) }}">Open</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="empty">No notes saved yet.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}
