@@ -22,10 +22,11 @@ except ImportError:
 
 SQLITE_URL = "sqlite:///notes.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", SQLITE_URL)
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-if DATABASE_URL.startswith("postgresql") and psycopg2 is None:
-    DATABASE_URL = SQLITE_URL
+if DATABASE_URL.startswith(("postgres://", "postgresql")):
+    # Always use the psycopg2 driver, whatever driver the URL names
+    DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL.split("://", 1)[1]
+    if psycopg2 is None:
+        DATABASE_URL = SQLITE_URL
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 metadata = MetaData()
