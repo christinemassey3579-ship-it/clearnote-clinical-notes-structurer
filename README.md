@@ -47,7 +47,7 @@ They are fast to write but hard to reuse: the next doctor, a referral letter or 
 - [x] Stage 3 — Logic layer before AI
 - [x] Stage 4 — Claude AI integration + grounding check + confidence
 - [x] Stage 5 — Database storage + saved notes
-- [ ] Stage 6 — Admin dashboard
+- [x] Stage 6 — Admin dashboard
 
 ## Run it on Replit
 

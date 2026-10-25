@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Admin dashboard{% endblock %}
+{% block content %}
+{% if not authed %}
+<div class="card" style="max-width:380px;margin:40px auto">
+  <h1>Admin login</h1>
+  {% if login_error %}<div class="alert error">{{ login_error }}</div>{% endif %}
+  <form method="post">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" autofocus>
+    <button class="btn" type="submit" style="margin-top:12px">Log in</button>
+  </form>
+  {% if default_pw %}<p class="sub" style="margin-top:12px;font-size:13px">Demo mode: password is <b>admin123</b>. Set ADMIN_PASSWORD in Replit Secrets to change it.</p>{% endif %}
+</div>
+{% else %}
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <div><h1>Admin dashboard</h1><p class="sub">Quality, safety and cost of every note processed · Model: {{ model }} · Database: {{ db_kind }}</p></div>
+  <a class="btn ghost" href="{{ url_for('admin_logout') }}">Log out</a>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="n">{{ s.total }}</div><div class="l">Notes submitted</div></div>
+  <div class="kpi"><div class="n">{{ s.avg_confidence if s.avg_confidence is not none else '-' }}</div><div class="l">Average confidence (0-100)</div></div>
+  <div class="kpi alertish"><div class="n">{{ s.blocked_total }}</div><div class="l">AI inventions blocked</div></div>
+  <div class="kpi alertish"><div class="n">{{ s.red_flag_notes }}</div><div class="l">Notes with urgent red flags</div></div>
+  <div class="kpi"><div class="n">{{ s.by_status.structured }}</div><div class="l">Structured by AI</div></div>
+  <div class="kpi"><div class="n">{{ s.by_status.stopped }}</div><div class="l">Stopped by logic layer (no AI cost)</div></div>
+  <div class="kpi"><div class="n">{{ s.by_status.ai_error }}</div><div class="l">AI errors handled</div></div>
+  <div class="kpi"><div class="n">${{ '%.4f'|format(s.total_cost) }}</div><div class="l">Total AI cost · avg {{ s.avg_seconds or '-' }}s per call</div></div>
+</div>
+
+<div class="charts">
+  <div class="card">
+    <h2>Most common missing information</h2>
+    {% set mx = (s.top_missing[0][1] if s.top_missing else 1) %}
+    {% for item, n in s.top_missing %}
+    <div class="bar"><span class="lbl">{{ item }}</span><span class="track"><span class="fill" style="display:block;width:{{ (n / mx * 100)|round }}%"></span></span><b>{{ n }}</b></div>
+    {% else %}<p class="empty">No data yet.</p>{% endfor %}
+    <small class="sub">Tells the clinic which documentation habits to coach.</small>
+  </div>
+  <div class="card">
+    <h2>Confidence breakdown</h2>
+    {% set tot = (s.by_level.High + s.by_level.Medium + s.by_level.Low) or 1 %}
+    {% for lvl, colour in [('High','var(--green)'),('Medium','var(--amber)'),('Low','var(--red)')] %}
+    <div class="bar"><span class="lbl">{{ lvl }}</span><span class="track"><span class="fill" style="display:block;background:{{ colour }};width:{{ (s.by_level[lvl] / tot * 100)|round }}%"></span></span><b>{{ s.by_level[lvl] }}</b></div>
+    {% endfor %}
+    <h2 style="margin-top:18px">Notes per day</h2>
+    {% set dmx = (s.per_day|map(attribute=1)|max) if s.per_day else 1 %}
+    {% for day, n in s.per_day %}
+    <div class="bar"><span class="lbl">{{ day }}</span><span class="track"><span class="fill" style="display:block;background:var(--teal);width:{{ (n / dmx * 100)|round }}%"></span></span><b>{{ n }}</b></div>
+    {% else %}<p class="empty">No data yet.</p>{% endfor %}
+  </div>
+</div>
+
+<div class="card" style="overflow-x:auto">
+  <h2>All submissions · {{ s.needs_review }} awaiting clinician review</h2>
+  <form class="filters" method="get">
+    <select name="status">
+      <option value="">Any status</option>
+      {% for st in ['structured','stopped','ai_error'] %}<option value="{{ st }}" {{ 'selected' if request.args.get('status') == st }}>{{ st.replace('_',' ') }}</option>{% endfor %}
+    </select>
+    <select name="level">
+      <option value="">Any confidence</option>
+      {% for l in ['High','Medium','Low'] %}<option {{ 'selected' if request.args.get('level') == l }}>{{ l }}</option>{% endfor %}
+    </select>
+    <button class="btn small" type="submit">Filter</button>
+  </form>
+  <table class="list">
+    <tr><th>#</th><th>Date (IST)</th><th>Patient</th><th>Role</th><th>Status</th><th>Conf.</th><th>Missing</th><th>Blocked</th><th>Tokens</th><th>Cost</th><th>Error</th><th></th></tr>
+    {% for n in notes %}
+    <tr>
+      <td>{{ n.id }}</td><td>{{ n.created_at|ist }}</td><td>{{ n.patient_ref }}</td><td>{{ n.clinician_role }}</td>
+      <td><span class="pill {{ n.status }}">{{ n.status.replace('_',' ') }}</span></td>
+      <td>{{ n.confidence_score if n.confidence_score is not none else '-' }}</td>
+      <td>{{ n.flag_count }}</td>
+      <td>{{ n.blocked_count or 0 }}</td>
+      <td>{{ ((n.input_tokens or 0) + (n.output_tokens or 0)) or '-' }}</td>
+      <td>{{ ('$%.4f'|format(n.cost_usd)) if n.cost_usd else '-' }}</td>
+      <td><small>{{ n.error_message or '' }}</small></td>
+      <td><a href="{{ url_for('view_note', note_id=n.id) }}">Open</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="12" class="empty">No submissions yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

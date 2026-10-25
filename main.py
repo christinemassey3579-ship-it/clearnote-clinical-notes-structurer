@@ -11,14 +11,14 @@ The 10-step pipeline, in order:
    7. Confidence / flag check -> ai.ground_and_score
    8. Database storage        -> db.save_note
    9. Structured UI output    -> templates/result.html
-(Admin dashboard is added in the next stage.)
+  10. Admin dashboard         -> /admin
 """
 
 import os
 import secrets
 from datetime import timedelta, timezone
 
-from flask import Flask, redirect, render_template, request, url_for, abort
+from flask import Flask, redirect, render_template, request, session, url_for, abort
 
 import ai
 import db
@@ -27,7 +27,8 @@ import validation
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(16)
-FEATURES = {"form", "logic", "ai", "db"}
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+FEATURES = {"form", "logic", "ai", "db", "admin"}
 
 db.init_db()
 
@@ -59,7 +60,7 @@ def build_trace(route, ai_ok, saved):
         states += ["done", "done", "done", "done"]
     else:
         states += ["done", "fail", "skip", "skip"]
-    states += ["done" if saved else "skip", "done", ""]   # dashboard not built yet
+    states += ["done" if saved else "skip", "done", "done"]
     return list(zip(STEPS, states))
 
 
@@ -138,6 +139,30 @@ def history():
     notes = db.list_notes(patient_ref=request.args.get("patient_ref") or None,
                           level=request.args.get("level") or None)
     return render_template("history.html", notes=notes, active="history")
+
+
+# ------------------------------------------------------------- admin (step 10)
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    login_error = None
+    if request.method == "POST":
+        if secrets.compare_digest(request.form.get("password", ""), ADMIN_PASSWORD):
+            session["admin"] = True
+            return redirect(url_for("admin"))
+        login_error = "Wrong password."
+    if not session.get("admin"):
+        return render_template("admin.html", authed=False, login_error=login_error, active="admin",
+                               default_pw="ADMIN_PASSWORD" not in os.environ)
+    notes = db.list_notes(limit=200, status=request.args.get("status") or None,
+                          level=request.args.get("level") or None)
+    return render_template("admin.html", authed=True, s=db.dashboard_stats(), notes=notes, active="admin",
+                           db_kind=db.db_kind(), model=ai.MODEL)
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    return redirect(url_for("index"))
 
 
 @app.errorhandler(404)
