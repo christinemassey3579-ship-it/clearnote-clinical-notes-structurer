@@ -1,14 +1,176 @@
 {% extends "base.html" %}
-{% block title %}Notes received{% endblock %}
+{% block title %}Structured note{% endblock %}
 {% block content %}
-<h1>Notes received · {{ data.patient_ref }}</h1>
-<p class="sub">{{ data.encounter_type }} · {{ data.clinician_role }} ·
-  {{ data.age ~ ' yrs' if data.age else 'age not given' }} · {{ data.sex }}</p>
-<div class="alert info"><strong>All validation checks passed.</strong>
-  The notes are ready for the logic layer (coming in the next stage).</div>
-<div class="card">
-  <h2>Notes as entered ({{ data.raw_notes.split()|length }} words)</h2>
-  <pre class="raw">{{ data.raw_notes }}</pre>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+  <div>
+    <h1>Structured note · {{ data.patient_ref }}</h1>
+    <p class="sub">{{ data.encounter_type }} · {{ data.clinician_role }} ·
+      {{ data.age ~ ' yrs' if data.age else 'age not given' }} · {{ data.sex }}
+      {% if note %} · Saved as note #{{ note.id }}{% endif %}</p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    {% if note %}
+    <form method="post" action="{{ url_for('review', note_id=note.id) }}">
+      {% if note.review_status == 'Reviewed' %}
+        <span class="pill Reviewed">Reviewed</span>
+        <input type="hidden" name="value" value="Needs review">
+        <button class="btn ghost" type="submit">Undo</button>
+      {% else %}
+        <input type="hidden" name="value" value="Reviewed">
+        <button class="btn small" type="submit">Mark as reviewed</button>
+      {% endif %}
+    </form>
+    {% endif %}
+    {% if result %}<button class="btn ghost" type="button" id="copyBtn">Copy as text</button>{% endif %}
+    <a class="btn ghost" href="{{ url_for('index') }}">New note</a>
+  </div>
 </div>
-<a class="btn ghost" href="{{ url_for('index') }}">New note</a>
+
+{% if report.red_flags %}
+<div class="alert urgent">
+  <strong>⚠ Urgent - red-flag terms found in the notes</strong>
+  <ul>{% for r in report.red_flags %}<li>"{{ r.term }}" - {{ r.reason }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if report.route == 'stop' %}
+<div class="alert warn"><strong>Stopped by the logic layer.</strong> {{ report.route_reason }}</div>
+{% endif %}
+
+{% if error %}
+<div class="alert error"><strong>The AI step did not complete.</strong> {{ error }}
+  <br>The rule-based checks below still worked, and nothing was invented. You can try again.</div>
+{% endif %}
+
+<div class="grid">
+  <div>
+    {% if result %}
+    <div class="card conf">
+      <div class="conf-dial conf-{{ result.confidence.level }}">{{ result.confidence.score }}</div>
+      <div>
+        <strong>{{ result.confidence.level }} confidence</strong>
+        {% if result.confidence.level == 'Low' %} - review carefully before using{% endif %}
+        <ul>{% for r in result.confidence.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+
+    {% if result.one_line_summary %}
+    <div class="card"><h2>Summary</h2>{{ result.one_line_summary }}</div>
+    {% endif %}
+
+    {% for key, label in sections %}
+    <div class="card section">
+      <h2>{{ label }} <span class="pill {{ result.section_confidence[key] }}">{{ result.section_confidence[key] }} confidence</span></h2>
+      {% if result[key] %}
+      <ul class="items">
+        {% for item in result[key] %}
+        <li>{{ item.text }}<span class="evidence">“{{ item.evidence }}”</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty">Nothing about {{ label|lower }} was written in the notes.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if result.ambiguities %}
+    <div class="card"><h2>Unclear or contradictory points</h2>
+      <ul>{% for a in result.ambiguities %}<li>{{ a }}</li>{% endfor %}</ul></div>
+    {% endif %}
+    {% else %}
+    <div class="card">
+      <h2>Logic-layer findings</h2>
+      <p>These checks ran with fixed rules - no AI.
+      {% if report.route == 'ai' and not error %}The notes are ready to be sent to the AI.{% endif %}</p>
+      <p><strong>Sections detected by keyword:</strong>
+        {% for k, label in sections %}
+          <span class="pill {{ 'high' if report.sections_detected[k] else 'low' }}">{{ label }}</span>
+        {% endfor %}
+      </p>
+      <p><strong>Words checked:</strong> {{ report.word_count }}</p>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <details>
+        <summary>Original notes (as sent to the AI, identifiers removed)</summary>
+        <pre class="raw">{{ report.redacted_notes }}</pre>
+      </details>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <h2>Missing critical info ({{ (result.flags if result else report.missing)|length }})</h2>
+      {% for f in (result.flags if result else report.missing) %}
+      <div class="flag"><b>{{ f.item }} <span class="pill sev-{{ f.severity }}">{{ f.severity }}</span></b>
+        <small>{{ f.message }} · found by {{ 'rules' if f.source == 'rules' else 'AI' }}</small></div>
+      {% else %}
+      <p class="empty">No critical gaps found.</p>
+      {% endfor %}
+    </div>
+
+    {% if result and result.blocked %}
+    <div class="card">
+      <h2>Blocked by safety check ({{ result.blocked|length }})</h2>
+      <small>The AI suggested these, but they could not be matched to your notes, so they were removed.</small>
+      {% for b in result.blocked %}
+      <div class="blocked"><s>{{ b.text }}</s><br><small>{{ b.section }} · {{ b.reason }}</small></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h2>Vital signs check (rules)</h2>
+      {% if report.vitals %}
+      <table class="vitals">
+        {% for v in report.vitals %}
+        <tr><td>{{ v.name }}</td><td><b>{{ v.value }}</b><br>
+          <span class="pill {{ v.status }}">{{ v.status }}</span> <small>{{ v.note }}</small></td></tr>
+        {% endfor %}
+      </table>
+      {% else %}<p class="empty">No vital signs found in the notes.</p>{% endif %}
+    </div>
+
+    {% if report.abbreviations %}
+    <div class="card"><h2>Shorthand recognised</h2>
+      <small>{% for a in report.abbreviations %}<b>{{ a.short }}</b> = {{ a.meaning }}{{ '; ' if not loop.last }}{% endfor %}</small>
+    </div>
+    {% endif %}
+
+    <div class="card"><h2>Privacy</h2>
+      {% if report.redactions %}
+        <small>Removed before the AI call: {{ report.redactions|join(', ') }}.</small>
+      {% else %}<small>No names, phone numbers or ID numbers detected.</small>{% endif %}
+    </div>
+
+    {% if meta %}
+    <div class="card"><h2>AI call</h2>
+      <small>{{ meta.model }} · {{ meta.seconds }}s · {{ meta.input_tokens }} in / {{ meta.output_tokens }} out tokens · ≈ ${{ '%.4f'|format(meta.cost_usd) }}</small>
+    </div>
+    {% endif %}
+  </aside>
+</div>
+
+<div class="card">
+  <h2>Pipeline trace</h2>
+  <div class="trace">{% for label, state in trace %}<div class="{{ state }}">{{ label }}</div>{% endfor %}</div>
+</div>
+
+{% if result %}
+<script>
+document.getElementById("copyBtn").addEventListener("click", () => {
+  const out = [];
+  document.querySelectorAll(".section").forEach(s => {
+    out.push(s.querySelector("h2").childNodes[0].textContent.trim().toUpperCase());
+    const items = s.querySelectorAll("li");
+    if (!items.length) out.push("- Not recorded");
+    items.forEach(li => out.push("- " + li.childNodes[0].textContent.trim()));
+    out.push("");
+  });
+  navigator.clipboard.writeText(out.join("\n"));
+  const b = document.getElementById("copyBtn"); b.textContent = "Copied ✓"; setTimeout(() => b.textContent = "Copy as text", 1500);
+});
+</script>
+{% endif %}
 {% endblock %}
